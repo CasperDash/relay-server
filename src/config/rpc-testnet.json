@@ -1,0 +1,8 @@
+{
+  "RPC_URLS": [
+    "http://138.201.51.197:7777/rpc"
+  ],
+  "EVENT_STREAM_URLS": [
+    "http://138.201.51.197:9999/events/main"
+  ]
+}

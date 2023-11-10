@@ -1,0 +1,11 @@
+{
+  "RPC_URLS": [
+    "http://192.168.1.201:11101/rpc"
+  ],
+  "SPEC_RPC_URLS": [
+    "http://192.168.1.201:25101/rpc"
+  ],
+  "EVENT_STREAM_URLS": [
+    "http://192.168.1.201:18101/events/main"
+  ]
+}
