@@ -69,7 +69,7 @@ export class DeployService {
       );
     }
     const cost = BigNumber.from(estimate.execution_result.Success.cost)
-      .mul(100 + this.configService.get<number>("GAS_BUFFER"))
+      .mul(100 + Number(this.configService.get("GAS_BUFFER")))
       .div(100);
     const signedDeploy = DeployUtil.signDeploy(
       DeployUtil.makeDeploy(
