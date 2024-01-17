@@ -15,8 +15,10 @@ import { ConfigService } from "@nestjs/config";
 import { RpcService } from "../common/rpc.service";
 import { SpeculativeService } from "../common/speculative.service";
 import { CasperService } from "../common/casper.service";
-import { BigNumber } from "@ethersproject/bignumber";
+import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { bytesToHex } from "@noble/hashes/utils";
+
+const MOTE_RATE = 1_000_000_000;
 
 type SpeculativeDeployResult = {
   execution_result: {
@@ -42,12 +44,6 @@ export class DeployService {
     originalDeploy: DeployUtil.Deploy,
     transferDeploy?: DeployUtil.Deploy,
   ) {
-    let payAmount = BigNumber.from(0);
-    if (transferDeploy) {
-      payAmount = BigNumber.from(
-        transferDeploy.session.asTransfer()?.getArgByName("amount")?.value(),
-      );
-    }
     // Make deploy
     const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
       this.configService.get<string>(`PAYMASTER_KEY_PATH`),
@@ -56,32 +52,13 @@ export class DeployService {
       paymasterKey.publicKey,
       this.configService.get<string>(`CHAIN_NAME`),
     );
-    const session = DeployUtil.ExecutableDeployItem.newStoredContractByHash(
-      Contracts.contractHashToByteArray(
-        this.configService.get<string>(`RELAY_CONTRACT_HASH`),
-      ),
-      "call_entry_point",
-      RuntimeArgs.fromMap({
-        contract: CLValueBuilder.byteArray(
-          originalDeploy.session.storedContractByHash.hash,
-        ),
-        caller: originalDeploy.header.account,
-        entry_point: CLValueBuilder.string(
-          originalDeploy.session.storedContractByHash.entryPoint,
-        ),
-        pay_amount: CLValueBuilder.u512(payAmount),
-        args: CLValueBuilder.byteArray(
-          originalDeploy.session.storedContractByHash.args.toBytes().unwrap(),
-        ),
-      }),
-    );
     const estimate: SpeculativeDeployResult =
       await this.speculativeService.speculativeDeploy(
         DeployUtil.signDeploy(
           DeployUtil.makeDeploy(
             deployParam,
-            session,
-            DeployUtil.standardPayment(100 * 1_000_000_000),
+            this.buildDeployItem(originalDeploy, 0, transferDeploy),
+            DeployUtil.standardPayment(100 * MOTE_RATE),
           ),
           paymasterKey,
         ),
@@ -91,11 +68,13 @@ export class DeployService {
         estimate.execution_result.Failure.error_message,
       );
     }
-    const cost = estimate.execution_result.Success.cost;
+    const cost = BigNumber.from(estimate.execution_result.Success.cost)
+      .mul(100 + this.configService.get<number>("GAS_BUFFER"))
+      .div(100);
     const signedDeploy = DeployUtil.signDeploy(
       DeployUtil.makeDeploy(
         deployParam,
-        session,
+        this.buildDeployItem(originalDeploy, cost, transferDeploy),
         DeployUtil.standardPayment(cost),
       ),
       paymasterKey,
@@ -146,5 +125,41 @@ export class DeployService {
     }
 
     return deployHash;
+  }
+
+  private buildDeployItem(
+    originalDeploy: DeployUtil.Deploy,
+    gasAmount: BigNumberish,
+    transferDeploy?: DeployUtil.Deploy,
+  ) {
+    let payAmount = BigNumber.from(0);
+    if (transferDeploy) {
+      payAmount = BigNumber.from(
+        transferDeploy.session.asTransfer()?.getArgByName("amount")?.value(),
+      );
+    }
+
+    return DeployUtil.ExecutableDeployItem.newStoredContractByHash(
+      Contracts.contractHashToByteArray(
+        this.configService.get<string>(`RELAY_CONTRACT_HASH`),
+      ),
+      "call_on_behalf",
+      RuntimeArgs.fromMap({
+        contract: CLValueBuilder.byteArray(
+          originalDeploy.session.storedContractByHash.hash,
+        ),
+        caller: CLValueBuilder.byteArray(
+          originalDeploy.header.account.toAccountHash(),
+        ),
+        entry_point: CLValueBuilder.string(
+          originalDeploy.session.storedContractByHash.entryPoint,
+        ),
+        pay_amount: CLValueBuilder.u512(payAmount),
+        gas_amount: CLValueBuilder.u512(gasAmount),
+        args: CLValueBuilder.byteArray(
+          originalDeploy.session.storedContractByHash.args.toBytes().unwrap(),
+        ),
+      }),
+    );
   }
 }

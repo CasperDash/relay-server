@@ -1,8 +1,11 @@
 {
   "RPC_URLS": [
-    "http://138.201.51.197:7777/rpc"
+    "http://testnet-node.melem.io:7777/rpc"
+  ],
+  "SPEC_RPC_URLS": [
+    "http://testnet-node.melem.io:7778/rpc"
   ],
   "EVENT_STREAM_URLS": [
-    "http://138.201.51.197:9999/events/main"
+    "http://testnet-node.melem.io:9999/events/main"
   ]
 }
