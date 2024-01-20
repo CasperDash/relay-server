@@ -1,0 +1,4 @@
+GET http://localhost:3000/user/01c1003f6a4f7d7d2b8a4185e2a69cdf799d57014565d37f7322ff9ad183472a19/balance
+Accept: application/json
+
+###

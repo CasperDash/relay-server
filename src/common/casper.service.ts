@@ -4,7 +4,7 @@ import { CasperClient } from "casper-js-sdk";
 
 @Injectable()
 export class CasperService {
-  private casperClient: CasperClient;
+  casperClient: CasperClient;
   constructor(private rpcService: RpcService) {
     this.casperClient = new CasperClient(rpcService.getRpcUrl());
   }
