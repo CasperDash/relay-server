@@ -31,21 +31,43 @@ export class EventService implements OnModuleInit {
     this.eventStream.subscribe(
       EventName.DeployProcessed,
       async (result: any) => {
+        const deployHash = result.body.DeployProcessed.deploy_hash;
         const events = await this.parseRelayEvents(result);
         for (const event of events) {
           switch (event.name) {
-            case EVENT_NAMES.DEPOSIT:
-              const owner = event.data["owner"].value() as string;
-              const amount = event.data["amount"].value() as string;
+            case EVENT_NAMES.DEPOSIT: {
+              const owner: string = event.data["owner"].value();
+              const amount: string = event.data["amount"].value();
               await this.userService.createTransaction(
+                deployHash,
                 "deposit",
-                owner,
+                owner.slice(13),
                 amount,
               );
               break;
-            case EVENT_NAMES.REGISTER:
+            }
+            case EVENT_NAMES.REGISTER: {
+              const owner: string = event.data["owner"].value();
+              const contractHash: string = event.data["contract_hash"].value();
+              await this.userService.createOrUpdateContract(
+                owner,
+                contractHash.slice(9),
+              );
               break;
+            }
             case EVENT_NAMES.CALL_ON_BEHALF:
+              const owner: string = event.data["owner"].value();
+              const contractHash: string = event.data["contract_hash"].value();
+              const gasAmount: string = event.data["gas_amount"].value();
+              const entryPoint: string = event.data["entry_point"].value();
+              await this.userService.createTransaction(
+                deployHash,
+                "spend",
+                owner.slice(13),
+                gasAmount,
+                contractHash.slice(9),
+                entryPoint,
+              );
               break;
           }
         }
