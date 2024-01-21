@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { CLAccountHash, CLPublicKey, Contracts } from "casper-js-sdk";
+import { Contracts } from "casper-js-sdk";
 import { ConfigService } from "@nestjs/config";
 import { CasperService } from "../common/casper.service";
 import { BigNumber } from "@ethersproject/bignumber";
