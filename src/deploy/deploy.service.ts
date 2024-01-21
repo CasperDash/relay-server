@@ -17,6 +17,7 @@ import { SpeculativeService } from "../common/speculative.service";
 import { CasperService } from "../common/casper.service";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { bytesToHex } from "@noble/hashes/utils";
+import { UserService } from "../user/user.service";
 
 const MOTE_RATE = 1_000_000_000;
 
@@ -38,12 +39,17 @@ export class DeployService {
     private rpcService: RpcService,
     private casperService: CasperService,
     private speculativeService: SpeculativeService,
+    private userService: UserService,
   ) {}
 
   async deploy(
     originalDeploy: DeployUtil.Deploy,
     transferDeploy?: DeployUtil.Deploy,
   ) {
+    const contractHash = bytesToHex(
+      originalDeploy.session.storedContractByHash.hash,
+    );
+    const owner = await this.userService.getContractOwner(contractHash);
     // Make deploy
     const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
       this.configService.get<string>(`PAYMASTER_KEY_PATH`),
@@ -71,6 +77,10 @@ export class DeployService {
     const cost = BigNumber.from(estimate.execution_result.Success.cost)
       .mul(100 + Number(this.configService.get("GAS_BUFFER")))
       .div(100);
+    const ownerBalance = await this.userService.getBalance(owner);
+    if (ownerBalance.lt(cost)) {
+      throw new NotAcceptableException("Insufficient balance");
+    }
     const signedDeploy = DeployUtil.signDeploy(
       DeployUtil.makeDeploy(
         deployParam,

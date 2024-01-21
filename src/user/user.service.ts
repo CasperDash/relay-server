@@ -73,7 +73,7 @@ export class UserService {
   async createOrUpdateContract(ownerAccountHash: string, contractHash: string) {
     const contract = await this.contractModel.findOne({ contractHash });
     if (contract) {
-      if (contract.ownerAccountHash !== ownerAccountHash) {
+      if (contract.ownerAccountHash === ownerAccountHash) {
         return contract;
       }
       contract.ownerAccountHash = ownerAccountHash;

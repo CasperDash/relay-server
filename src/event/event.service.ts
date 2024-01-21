@@ -50,7 +50,7 @@ export class EventService implements OnModuleInit {
               const owner: string = event.data["owner"].value();
               const contractHash: string = event.data["contract_hash"].value();
               await this.userService.createOrUpdateContract(
-                owner,
+                owner.slice(13),
                 contractHash.slice(9),
               );
               break;
