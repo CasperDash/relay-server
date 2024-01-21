@@ -16,6 +16,13 @@ export class RpcService {
     }
     this.rpcUrl = RPC_URLS[0];
 
+    const EVENT_STREAM_URLS =
+      this.configService.get<string[]>("EVENT_STREAM_URLS");
+    if (!EVENT_STREAM_URLS.length) {
+      throw new Error(`No active event stream found`);
+    }
+    this.eventStreamUrl = EVENT_STREAM_URLS[0];
+
     const SPEC_RPC_URLS = this.configService.get<string[]>("SPEC_RPC_URLS");
     if (!SPEC_RPC_URLS.length) {
       throw new Error(`No active speculative RPC server found`);
@@ -25,6 +32,10 @@ export class RpcService {
 
   getRpcUrl() {
     return this.rpcUrl;
+  }
+
+  getEventStreamUrl() {
+    return this.eventStreamUrl;
   }
 
   getSpeculativeRpcUrl() {

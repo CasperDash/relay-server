@@ -4,7 +4,7 @@ import { CasperClient } from "casper-js-sdk";
 
 @Injectable()
 export class CasperService {
-  casperClient: CasperClient;
+  private casperClient: CasperClient;
   constructor(private rpcService: RpcService) {
     this.casperClient = new CasperClient(rpcService.getRpcUrl());
   }
@@ -17,5 +17,13 @@ export class CasperService {
     const result = await this.casperClient.nodeClient.waitForDeploy(deployHash);
     if (result.execution_results.length === 0) return false;
     return !!result.execution_results[0].result;
+  }
+
+  getCasperClient() {
+    return this.casperClient;
+  }
+
+  getRpcClient() {
+    return this.casperClient.nodeClient;
   }
 }

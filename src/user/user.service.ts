@@ -3,6 +3,9 @@ import { CLPublicKey, Contracts } from "casper-js-sdk";
 import { ConfigService } from "@nestjs/config";
 import { CasperService } from "../common/casper.service";
 import { BigNumber } from "@ethersproject/bignumber";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Contract } from "./schemas/contract.schema";
 
 @Injectable()
 export class UserService {
@@ -11,9 +14,10 @@ export class UserService {
   constructor(
     private configService: ConfigService,
     private casperService: CasperService,
+    @InjectModel(Contract.name) private contractModel: Model<Contract>,
   ) {
     this.relayContractClient = new Contracts.Contract(
-      this.casperService.casperClient,
+      this.casperService.getCasperClient(),
     );
     this.relayContractClient.setContractHash(
       `hash-${this.configService.get<string>("RELAY_CONTRACT_HASH")}`,
@@ -30,5 +34,17 @@ export class UserService {
     );
 
     return balance.value() as BigNumber;
+  }
+
+  async createTransaction(
+    transactionType: string,
+    accountHash: string,
+    amount: string,
+  ) {
+    return this.contractModel.create({
+      transactionType,
+      accountHash,
+      amount,
+    });
   }
 }

@@ -2,10 +2,12 @@ import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { CommonModule } from "./common/common.module";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { DeployModule } from "./deploy/deploy.module";
 import { UserModule } from "./user/user.module";
+import { EventModule } from "./event/event.module";
 import RpcConfig from "./config/rpc-config";
+import { MongooseModule } from "@nestjs/mongoose";
 
 @Module({
   imports: [
@@ -14,8 +16,16 @@ import RpcConfig from "./config/rpc-config";
       isGlobal: true,
       load: [RpcConfig],
     }),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        uri: config.get<string>("MONGODB_URI"),
+      }),
+    }),
     DeployModule,
     UserModule,
+    EventModule,
   ],
   controllers: [AppController],
   providers: [AppService],
