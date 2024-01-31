@@ -10,13 +10,11 @@ import { DeployUtil } from "casper-js-sdk";
 @ValidatorConstraint({ async: true })
 export class IsDeployDecorator implements ValidatorConstraintInterface {
   constructor() {}
-  validate(deploy: any, args: ValidationArguments) {
+  validate(deployJson: any, args: ValidationArguments) {
     const options = args.constraints[0];
-    if (DeployUtil.deployFromJson(deploy).err) return false;
-    return !(
-      options?.isTransfer &&
-      !DeployUtil.deployFromJson(deploy).unwrap().isTransfer()
-    );
+    const deploy = DeployUtil.deployFromJson(deployJson).unwrapOr(null);
+    if (!deploy) return false;
+    return !(options?.isTransfer && deploy.isTransfer());
   }
 
   defaultMessage(args?: ValidationArguments): string {

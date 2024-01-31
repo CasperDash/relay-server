@@ -11,8 +11,6 @@ import { Transaction, TransactionSchema } from "./schemas/transaction.schema";
     CommonModule,
     MongooseModule.forFeature([
       { name: Contract.name, schema: ContractSchema },
-    ]),
-    MongooseModule.forFeature([
       { name: Transaction.name, schema: TransactionSchema },
     ]),
   ],

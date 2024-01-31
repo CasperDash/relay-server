@@ -3,8 +3,10 @@ import {
   Injectable,
   Logger,
   NotAcceptableException,
+  NotFoundException,
 } from "@nestjs/common";
 import {
+  CasperClient,
   CLValueBuilder,
   Contracts,
   DeployUtil,
@@ -18,6 +20,9 @@ import { CasperService } from "../common/casper.service";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { bytesToHex } from "@noble/hashes/utils";
 import { UserService } from "../user/user.service";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Pair } from "./schemas/pair.schema";
 
 const MOTE_RATE = 1_000_000_000;
 
@@ -40,6 +45,7 @@ export class DeployService {
     private casperService: CasperService,
     private speculativeService: SpeculativeService,
     private userService: UserService,
+    @InjectModel(Pair.name) private pairModel: Model<Pair>,
   ) {}
 
   async deploy(
@@ -58,25 +64,11 @@ export class DeployService {
       paymasterKey.publicKey,
       this.configService.get<string>(`CHAIN_NAME`),
     );
-    const estimate: SpeculativeDeployResult =
-      await this.speculativeService.speculativeDeploy(
-        DeployUtil.signDeploy(
-          DeployUtil.makeDeploy(
-            deployParam,
-            this.buildDeployItem(originalDeploy, 0, transferDeploy),
-            DeployUtil.standardPayment(100 * MOTE_RATE),
-          ),
-          paymasterKey,
-        ),
-      );
-    if (estimate.execution_result.Failure) {
-      throw new NotAcceptableException(
-        estimate.execution_result.Failure.error_message,
-      );
-    }
-    const cost = BigNumber.from(estimate.execution_result.Success.cost)
-      .mul(100 + Number(this.configService.get("GAS_BUFFER")))
-      .div(100);
+    const payAmount = BigNumber.from(
+      transferDeploy?.session.asTransfer()?.getArgByName("amount")?.value() ??
+        0,
+    );
+    const cost = await this.estimateGasCost(originalDeploy, payAmount);
     const ownerBalance = await this.userService.getBalance(owner);
     if (ownerBalance.lt(cost)) {
       throw new NotAcceptableException("Insufficient balance");
@@ -84,7 +76,7 @@ export class DeployService {
     const signedDeploy = DeployUtil.signDeploy(
       DeployUtil.makeDeploy(
         deployParam,
-        this.buildDeployItem(originalDeploy, cost, transferDeploy),
+        this.buildDeployItem(originalDeploy, cost, payAmount),
         DeployUtil.standardPayment(cost),
       ),
       paymasterKey,
@@ -116,6 +108,22 @@ export class DeployService {
     };
   }
 
+  async estimate(
+    originalDeploy: DeployUtil.Deploy,
+    transferDeploy?: DeployUtil.Deploy,
+    cep18?: string,
+  ) {
+    const payAmount = BigNumber.from(
+      transferDeploy?.session.asTransfer()?.getArgByName("amount")?.value() ??
+        0,
+    );
+    const cost = await this.estimateGasCost(originalDeploy, payAmount);
+    if (cep18) {
+      return this.exchangeToCep18(cost, cep18);
+    }
+    return cost;
+  }
+
   private async transfer(deploy: DeployUtil.Deploy) {
     // Check transfer target
     const target = deploy.session
@@ -140,15 +148,8 @@ export class DeployService {
   private buildDeployItem(
     originalDeploy: DeployUtil.Deploy,
     gasAmount: BigNumberish,
-    transferDeploy?: DeployUtil.Deploy,
+    payAmount: BigNumberish = BigNumber.from(0),
   ) {
-    let payAmount = BigNumber.from(0);
-    if (transferDeploy) {
-      payAmount = BigNumber.from(
-        transferDeploy.session.asTransfer()?.getArgByName("amount")?.value(),
-      );
-    }
-
     return DeployUtil.ExecutableDeployItem.newStoredContractByHash(
       Contracts.contractHashToByteArray(
         this.configService.get<string>(`RELAY_CONTRACT_HASH`),
@@ -171,5 +172,61 @@ export class DeployService {
         ),
       }),
     );
+  }
+
+  private async estimateGasCost(
+    originalDeploy: DeployUtil.Deploy,
+    payAmount: BigNumberish,
+  ) {
+    // Make deploy
+    const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
+      this.configService.get<string>(`PAYMASTER_KEY_PATH`),
+    );
+    const deployParam = new DeployUtil.DeployParams(
+      paymasterKey.publicKey,
+      this.configService.get<string>(`CHAIN_NAME`),
+    );
+    const estimate: SpeculativeDeployResult =
+      await this.speculativeService.speculativeDeploy(
+        DeployUtil.signDeploy(
+          DeployUtil.makeDeploy(
+            deployParam,
+            this.buildDeployItem(originalDeploy, 0, payAmount),
+            DeployUtil.standardPayment(100 * MOTE_RATE),
+          ),
+          paymasterKey,
+        ),
+      );
+    if (estimate.execution_result.Failure) {
+      throw new NotAcceptableException(
+        estimate.execution_result.Failure.error_message,
+      );
+    }
+    return BigNumber.from(estimate.execution_result.Success.cost)
+      .mul(100 + Number(this.configService.get("GAS_BUFFER")))
+      .div(100);
+  }
+
+  private async exchangeToCep18(csprAmount: BigNumberish, cep18: string) {
+    const pairContractClient = new Contracts.Contract(
+      // TODO: use casperService.getCasperClient(),
+      new CasperClient(`http://testnet-node.melem.io:7777/rpc`),
+    );
+    const pair = await this.pairModel.findOne({
+      name: cep18.toUpperCase(),
+    });
+    if (!pair) {
+      throw new NotFoundException(`${cep18.toUpperCase()} is not supported`);
+    }
+    pairContractClient.setContractHash(`hash-${pair.pairContract}`);
+    const reserveWcspr: BigNumber = await pairContractClient.queryContractData([
+      "reserve0",
+    ]);
+    const reserveCep18: BigNumber = await pairContractClient.queryContractData([
+      "reserve1",
+    ]);
+    const numerator = reserveCep18.mul(csprAmount).mul(1000);
+    const denominator = reserveWcspr.sub(csprAmount).mul(997);
+    return numerator.div(denominator).add(1);
   }
 }
