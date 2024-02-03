@@ -6,7 +6,7 @@ export type PairDocument = HydratedDocument<Pair>;
 @Schema({ timestamps: true })
 export class Pair {
   @Prop()
-  name: string;
+  symbol: string;
   @Prop()
   tokenContract: string;
   @Prop()

@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import {
   CasperClient,
+  CLString,
   CLValueBuilder,
   Contracts,
   DeployUtil,
@@ -23,6 +24,7 @@ import { UserService } from "../user/user.service";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Pair } from "./schemas/pair.schema";
+import { ContractService } from "../contract/contract.service";
 
 const MOTE_RATE = 1_000_000_000;
 
@@ -45,6 +47,7 @@ export class DeployService {
     private casperService: CasperService,
     private speculativeService: SpeculativeService,
     private userService: UserService,
+    private contractService: ContractService,
     @InjectModel(Pair.name) private pairModel: Model<Pair>,
   ) {}
 
@@ -55,31 +58,43 @@ export class DeployService {
     const contractHash = bytesToHex(
       originalDeploy.session.storedContractByHash.hash,
     );
-    const owner = await this.userService.getContractOwner(contractHash);
-    // Make deploy
-    const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
-      this.configService.get<string>(`PAYMASTER_KEY_PATH`),
-    );
-    const deployParam = new DeployUtil.DeployParams(
-      paymasterKey.publicKey,
-      this.configService.get<string>(`CHAIN_NAME`),
-    );
-    const payAmount = BigNumber.from(
-      transferDeploy?.session.asTransfer()?.getArgByName("amount")?.value() ??
-        0,
-    );
-    const cost = await this.estimateGasCost(originalDeploy, payAmount);
-    const ownerBalance = await this.userService.getBalance(owner);
-    if (ownerBalance.lt(cost)) {
-      throw new NotAcceptableException("Insufficient balance");
+    const contract = await this.contractService.getContractByHash(contractHash);
+    if (!contract) {
+      throw new NotFoundException("Contract is not registered");
     }
-    const signedDeploy = DeployUtil.signDeploy(
-      DeployUtil.makeDeploy(
-        deployParam,
-        this.buildDeployItem(originalDeploy, cost, payAmount),
-        DeployUtil.standardPayment(cost),
-      ),
-      paymasterKey,
+    let cost: BigNumber;
+    let gasAmount: BigNumber;
+    let cep18TokenHash: CLString;
+    if (!contract.paymentToken) {
+      // Pay with CSPR
+      const cost = await this.estimateGasCost(originalDeploy, transferDeploy);
+      const ownerBalance = await this.userService.getBalance(
+        contract.ownerAccountHash,
+      );
+      if (ownerBalance.lt(cost)) {
+        throw new NotAcceptableException("Insufficient balance");
+      }
+    } else {
+      // Pay with CEP18
+      cep18TokenHash = CLValueBuilder.string(
+        contract.paymentToken.tokenContract,
+      );
+      cost = await this.estimateGasCost(
+        originalDeploy,
+        transferDeploy,
+        CLValueBuilder.string(contract.paymentToken.tokenContract),
+      );
+      gasAmount = await this.exchangeToCep18(
+        cost,
+        contract.paymentToken.tokenContract,
+      );
+    }
+    const signedDeploy = this.makeRelayDeploy(
+      originalDeploy,
+      transferDeploy,
+      cost,
+      gasAmount,
+      cep18TokenHash,
     );
     if (transferDeploy) {
       this.transfer(transferDeploy).then((transferDeployHash) => {
@@ -111,17 +126,21 @@ export class DeployService {
   async estimate(
     originalDeploy: DeployUtil.Deploy,
     transferDeploy?: DeployUtil.Deploy,
-    cep18?: string,
+    cep18Symbol?: string,
   ) {
-    const payAmount = BigNumber.from(
-      transferDeploy?.session.asTransfer()?.getArgByName("amount")?.value() ??
-        0,
-    );
-    const cost = await this.estimateGasCost(originalDeploy, payAmount);
-    if (cep18) {
-      return this.exchangeToCep18(cost, cep18);
+    if (!cep18Symbol) {
+      return this.estimateGasCost(originalDeploy, transferDeploy);
     }
-    return cost;
+    const pair = await this.pairModel.findOne({ symbol: cep18Symbol });
+    if (!pair) {
+      throw new NotFoundException(`Token ${cep18Symbol} is not supported`);
+    }
+    const cost = await this.estimateGasCost(
+      originalDeploy,
+      transferDeploy,
+      CLValueBuilder.string(pair.tokenContract),
+    );
+    return this.exchangeToCep18(cost, pair.tokenContract);
   }
 
   private async transfer(deploy: DeployUtil.Deploy) {
@@ -145,56 +164,19 @@ export class DeployService {
     return deployHash;
   }
 
-  private buildDeployItem(
-    originalDeploy: DeployUtil.Deploy,
-    gasAmount: BigNumberish,
-    payAmount: BigNumberish = BigNumber.from(0),
-  ) {
-    return DeployUtil.ExecutableDeployItem.newStoredContractByHash(
-      Contracts.contractHashToByteArray(
-        this.configService.get<string>(`RELAY_CONTRACT_HASH`),
-      ),
-      "call_on_behalf",
-      RuntimeArgs.fromMap({
-        contract: CLValueBuilder.byteArray(
-          originalDeploy.session.storedContractByHash.hash,
-        ),
-        caller: CLValueBuilder.byteArray(
-          originalDeploy.header.account.toAccountHash(),
-        ),
-        entry_point: CLValueBuilder.string(
-          originalDeploy.session.storedContractByHash.entryPoint,
-        ),
-        pay_amount: CLValueBuilder.u512(payAmount),
-        gas_amount: CLValueBuilder.u512(gasAmount),
-        args: CLValueBuilder.byteArray(
-          originalDeploy.session.storedContractByHash.args.toBytes().unwrap(),
-        ),
-      }),
-    );
-  }
-
   private async estimateGasCost(
     originalDeploy: DeployUtil.Deploy,
-    payAmount: BigNumberish,
+    transferDeploy?: DeployUtil.Deploy,
+    cep18TokenHash?: CLString,
   ) {
-    // Make deploy
-    const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
-      this.configService.get<string>(`PAYMASTER_KEY_PATH`),
-    );
-    const deployParam = new DeployUtil.DeployParams(
-      paymasterKey.publicKey,
-      this.configService.get<string>(`CHAIN_NAME`),
-    );
     const estimate: SpeculativeDeployResult =
       await this.speculativeService.speculativeDeploy(
-        DeployUtil.signDeploy(
-          DeployUtil.makeDeploy(
-            deployParam,
-            this.buildDeployItem(originalDeploy, 0, payAmount),
-            DeployUtil.standardPayment(100 * MOTE_RATE),
-          ),
-          paymasterKey,
+        this.makeRelayDeploy(
+          originalDeploy,
+          transferDeploy,
+          null, // Make dummy deploy to estimate gas cost
+          0,
+          cep18TokenHash,
         ),
       );
     if (estimate.execution_result.Failure) {
@@ -207,16 +189,19 @@ export class DeployService {
       .div(100);
   }
 
-  private async exchangeToCep18(csprAmount: BigNumberish, cep18: string) {
+  private async exchangeToCep18(
+    csprAmount: BigNumberish,
+    tokenContract: string,
+  ) {
     const pairContractClient = new Contracts.Contract(
       // TODO: use casperService.getCasperClient(),
       new CasperClient(`http://testnet-node.melem.io:7777/rpc`),
     );
     const pair = await this.pairModel.findOne({
-      name: cep18.toUpperCase(),
+      tokenContract,
     });
     if (!pair) {
-      throw new NotFoundException(`${cep18.toUpperCase()} is not supported`);
+      throw new NotFoundException(`Token ${tokenContract} is not supported`);
     }
     pairContractClient.setContractHash(`hash-${pair.pairContract}`);
     const reserveWcspr: BigNumber = await pairContractClient.queryContractData([
@@ -228,5 +213,58 @@ export class DeployService {
     const numerator = reserveCep18.mul(csprAmount).mul(1000);
     const denominator = reserveWcspr.sub(csprAmount).mul(997);
     return numerator.div(denominator).add(1);
+  }
+
+  private makeRelayDeploy(
+    originalDeploy: DeployUtil.Deploy,
+    transferDeploy?: DeployUtil.Deploy,
+    cost?: BigNumberish,
+    gasAmount: BigNumberish = 0,
+    cep18TokenHash?: CLString,
+  ) {
+    const paymasterKey = Keys.Ed25519.loadKeyPairFromPrivateFile(
+      this.configService.get<string>(`PAYMASTER_KEY_PATH`),
+    );
+    const deployParam = new DeployUtil.DeployParams(
+      paymasterKey.publicKey,
+      this.configService.get<string>(`CHAIN_NAME`),
+    );
+    const payAmount = BigNumber.from(
+      transferDeploy?.session.asTransfer()?.getArgByName("amount")?.value() ??
+        0,
+    );
+    const sessionDeployItem =
+      DeployUtil.ExecutableDeployItem.newStoredContractByHash(
+        Contracts.contractHashToByteArray(
+          this.configService.get<string>(`RELAY_CONTRACT_HASH`),
+        ),
+        "call_on_behalf",
+        RuntimeArgs.fromMap({
+          contract: CLValueBuilder.byteArray(
+            originalDeploy.session.storedContractByHash.hash,
+          ),
+          caller: CLValueBuilder.byteArray(
+            originalDeploy.header.account.toAccountHash(),
+          ),
+          entry_point: CLValueBuilder.string(
+            originalDeploy.session.storedContractByHash.entryPoint,
+          ),
+          pay_amount: CLValueBuilder.u512(payAmount),
+          gas_amount: CLValueBuilder.u512(gasAmount),
+          cep18_token: cep18TokenHash,
+          args: CLValueBuilder.byteArray(
+            originalDeploy.session.storedContractByHash.args.toBytes().unwrap(),
+          ),
+        }),
+      );
+
+    return DeployUtil.signDeploy(
+      DeployUtil.makeDeploy(
+        deployParam,
+        sessionDeployItem,
+        DeployUtil.standardPayment(cost ?? 100 * MOTE_RATE),
+      ),
+      paymasterKey,
+    );
   }
 }
