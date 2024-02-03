@@ -5,7 +5,6 @@ import { CasperService } from "../common/casper.service";
 import { BigNumber } from "@ethersproject/bignumber";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Contract } from "./schemas/contract.schema";
 import { Transaction } from "./schemas/transaction.schema";
 import { bytesToHex } from "@noble/hashes/utils";
 
@@ -16,7 +15,6 @@ export class UserService {
   constructor(
     private configService: ConfigService,
     private casperService: CasperService,
-    @InjectModel(Contract.name) private contractModel: Model<Contract>,
     @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
   ) {
     this.relayContractClient = new Contracts.Contract(
@@ -67,21 +65,6 @@ export class UserService {
       amount,
       contractHash,
       entryPoint,
-    });
-  }
-
-  async createOrUpdateContract(ownerAccountHash: string, contractHash: string) {
-    const contract = await this.contractModel.findOne({ contractHash });
-    if (contract) {
-      if (contract.ownerAccountHash === ownerAccountHash) {
-        return contract;
-      }
-      contract.ownerAccountHash = ownerAccountHash;
-      return contract.save();
-    }
-    return this.contractModel.create({
-      ownerAccountHash,
-      contractHash,
     });
   }
 }

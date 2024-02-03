@@ -5,6 +5,7 @@ import { RpcService } from "../common/rpc.service";
 import { Parser } from "@make-software/ces-js-parser";
 import { CasperService } from "../common/casper.service";
 import { UserService } from "../user/user.service";
+import { ContractService } from "../contract/contract.service";
 
 const EVENT_NAMES = {
   DEPOSIT: "Deposit",
@@ -23,6 +24,7 @@ export class EventService implements OnModuleInit {
     private rpcService: RpcService,
     private casperService: CasperService,
     private userService: UserService,
+    private contractService: ContractService,
   ) {
     this.eventStream = new EventStream(this.rpcService.getEventStreamUrl());
   }
@@ -49,7 +51,7 @@ export class EventService implements OnModuleInit {
             case EVENT_NAMES.REGISTER: {
               const owner: string = event.data["owner"].value();
               const contractHash: string = event.data["contract_hash"].value();
-              await this.userService.createOrUpdateContract(
+              await this.contractService.createOrUpdateContract(
                 owner.slice(13),
                 contractHash.slice(9),
               );
