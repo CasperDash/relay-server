@@ -51,6 +51,7 @@ export class UserService {
     transactionType: string,
     accountHash: string,
     amount: string,
+    cep18Hash?: string,
     contractHash?: string,
     entryPoint?: string,
   ) {
@@ -63,6 +64,7 @@ export class UserService {
       transactionType,
       accountHash,
       amount,
+      cep18Hash,
       contractHash,
       entryPoint,
     });

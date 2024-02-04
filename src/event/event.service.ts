@@ -62,11 +62,15 @@ export class EventService implements OnModuleInit {
               const contractHash: string = event.data["contract_hash"].value();
               const gasAmount: string = event.data["gas_amount"].value();
               const entryPoint: string = event.data["entry_point"].value();
+              const cep18Hash = event.data["cep18_hash"].value().some
+                ? event.data["cep18_hash"].value().val.toJSON().slice(9)
+                : undefined;
               await this.userService.createTransaction(
                 deployHash,
                 "spend",
                 owner.slice(13),
                 gasAmount,
+                cep18Hash,
                 contractHash.slice(9),
                 entryPoint,
               );
