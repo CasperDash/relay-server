@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
-  CasperClient,
   CLValueBuilder,
   Contracts,
   DeployUtil,
@@ -190,8 +189,7 @@ export class DeployService {
     tokenContract: string,
   ) {
     const pairContractClient = new Contracts.Contract(
-      // TODO: use casperService.getCasperClient(),
-      new CasperClient(`http://testnet-node.melem.io:7777/rpc`),
+      this.casperService.getCasperClient(),
     );
     const pair = await this.pairModel.findOne({
       tokenContract,
