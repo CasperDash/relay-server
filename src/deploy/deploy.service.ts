@@ -81,7 +81,14 @@ export class DeployService {
         cost,
         contract.paymentToken.tokenContract,
       );
-      // TODO: Check allowance
+      // Check allowance
+      const allowance = await this.userService.getBalance(
+        contract.ownerAccountHash,
+        contract.paymentToken.tokenContract,
+      );
+      if (allowance.lt(cost)) {
+        throw new NotAcceptableException("Insufficient allowance");
+      }
     }
     const signedDeploy = this.makeRelayDeploy(
       originalDeploy,
