@@ -19,10 +19,8 @@ import { CasperService } from "../common/casper.service";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { bytesToHex } from "@noble/hashes/utils";
 import { UserService } from "../user/user.service";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Pair } from "./schemas/pair.schema";
 import { ContractService } from "../contract/contract.service";
+import { PairService } from "../contract/pair.service";
 
 const MOTE_RATE = 1_000_000_000;
 
@@ -46,7 +44,7 @@ export class DeployService {
     private speculativeService: SpeculativeService,
     private userService: UserService,
     private contractService: ContractService,
-    @InjectModel(Pair.name) private pairModel: Model<Pair>,
+    private pairService: PairService,
   ) {}
 
   async deploy(
@@ -83,6 +81,7 @@ export class DeployService {
         cost,
         contract.paymentToken.tokenContract,
       );
+      // TODO: Check allowance
     }
     const signedDeploy = this.makeRelayDeploy(
       originalDeploy,
@@ -126,7 +125,7 @@ export class DeployService {
     if (!cep18Symbol) {
       return this.estimateGasCost(originalDeploy, transferDeploy);
     }
-    const pair = await this.pairModel.findOne({ symbol: cep18Symbol });
+    const pair = await this.pairService.getBySymbol(cep18Symbol);
     if (!pair) {
       throw new NotFoundException(`Token ${cep18Symbol} is not supported`);
     }
@@ -191,9 +190,7 @@ export class DeployService {
     const pairContractClient = new Contracts.Contract(
       this.casperService.getCasperClient(),
     );
-    const pair = await this.pairModel.findOne({
-      tokenContract,
-    });
+    const pair = await this.pairService.getByTokenContract(tokenContract);
     if (!pair) {
       throw new NotFoundException(`Token ${tokenContract} is not supported`);
     }

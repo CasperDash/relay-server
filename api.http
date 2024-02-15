@@ -1,4 +1,7 @@
-GET http://localhost:3000/user/01c1003f6a4f7d7d2b8a4185e2a69cdf799d57014565d37f7322ff9ad183472a19/balance
+### 1. Get deposit balance in CSPR
+GET http://localhost:3000/user/0184f6d260F4EE6869DDB36affe15456dE6aE045278FA2f467bb677561cE0daD55/balance
 Accept: application/json
 
-###
+### 2. Get allowance balance in CEP18
+GET http://localhost:3000/user/0184f6d260F4EE6869DDB36affe15456dE6aE045278FA2f467bb677561cE0daD55/balance?cep18=USDT
+Accept: application/json
