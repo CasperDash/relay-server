@@ -24,6 +24,12 @@ export class ContractService {
     });
   }
 
+  async getContracts(accountHash: string) {
+    return this.contractModel
+      .find({ ownerAccountHash: accountHash })
+      .populate("paymentToken");
+  }
+
   async getContractByHash(contractHash: string) {
     return this.contractModel
       .findOne({ contractHash })

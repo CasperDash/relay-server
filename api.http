@@ -5,3 +5,7 @@ Accept: application/json
 ### 2. Get allowance balance in CEP18
 GET http://localhost:3000/user/0184f6d260F4EE6869DDB36affe15456dE6aE045278FA2f467bb677561cE0daD55/balance?cep18=USDT
 Accept: application/json
+
+### 3. Get registered contracts
+GET http://localhost:3000/user/0184f6d260F4EE6869DDB36affe15456dE6aE045278FA2f467bb677561cE0daD55/contract
+Accept: application/json
