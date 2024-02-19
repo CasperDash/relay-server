@@ -9,3 +9,6 @@ Accept: application/json
 ### 3. Get registered contracts
 GET http://localhost:3000/user/0184f6d260F4EE6869DDB36affe15456dE6aE045278FA2f467bb677561cE0daD55/contract
 Accept: application/json
+
+### 4. Get contract transactions
+GET http://localhost:3000/contract/c3f09d540c34cacf5d51d63bba7261890719940a3f6ae8120063f075dfb75f60/transaction

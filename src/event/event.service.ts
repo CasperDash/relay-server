@@ -4,8 +4,8 @@ import { EventName, EventStream } from "casper-js-sdk";
 import { RpcService } from "../common/rpc.service";
 import { Parser } from "@make-software/ces-js-parser";
 import { CasperService } from "../common/casper.service";
-import { UserService } from "../user/user.service";
 import { ContractService } from "../contract/contract.service";
+import { TransactionService } from "../contract/transaction.service";
 
 const EVENT_NAMES = {
   DEPOSIT: "Deposit",
@@ -23,8 +23,8 @@ export class EventService implements OnModuleInit {
     private configService: ConfigService,
     private rpcService: RpcService,
     private casperService: CasperService,
-    private userService: UserService,
     private contractService: ContractService,
+    private transactionService: TransactionService,
   ) {
     this.eventStream = new EventStream(this.rpcService.getEventStreamUrl());
   }
@@ -40,7 +40,7 @@ export class EventService implements OnModuleInit {
             case EVENT_NAMES.DEPOSIT: {
               const owner: string = event.data["owner"].value();
               const amount: string = event.data["amount"].value();
-              await this.userService.createTransaction(
+              await this.transactionService.create(
                 deployHash,
                 "deposit",
                 owner.slice(13),
@@ -65,7 +65,7 @@ export class EventService implements OnModuleInit {
               const cep18Hash = event.data["cep18_hash"].value().some
                 ? event.data["cep18_hash"].value().val.toJSON().slice(9)
                 : undefined;
-              await this.userService.createTransaction(
+              await this.transactionService.create(
                 deployHash,
                 "spend",
                 owner.slice(13),
