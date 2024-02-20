@@ -1,23 +1,22 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Contracts } from "casper-js-sdk";
+import { CLAccountHash, CLByteArray, Contracts } from "casper-js-sdk";
 import { ConfigService } from "@nestjs/config";
 import { CasperService } from "../common/casper.service";
 import { BigNumber } from "@ethersproject/bignumber";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Contract } from "./schemas/contract.schema";
-import { Transaction } from "./schemas/transaction.schema";
-import { bytesToHex } from "@noble/hashes/utils";
+import { PairService } from "../contract/pair.service";
+import { CEP18Client } from "casper-cep18-js-client";
+import { RpcService } from "../common/rpc.service";
+import { hexToBytes } from "@noble/hashes/utils";
 
 @Injectable()
 export class UserService {
   private relayContractClient: Contracts.Contract;
 
   constructor(
+    private rpcService: RpcService,
     private configService: ConfigService,
     private casperService: CasperService,
-    @InjectModel(Contract.name) private contractModel: Model<Contract>,
-    @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
+    private pairService: PairService,
   ) {
     this.relayContractClient = new Contracts.Contract(
       this.casperService.getCasperClient(),
@@ -27,61 +26,34 @@ export class UserService {
     );
   }
 
-  async getBalance(accountHash: string) {
-    const balance = await this.relayContractClient.queryContractDictionary(
-      "owner_balance",
-      accountHash,
-    );
-
-    return balance.value() as BigNumber;
-  }
-
-  async getContractOwner(contractHash: string) {
-    try {
-      const owner = await this.relayContractClient.queryContractDictionary(
-        "registered_contract",
-        contractHash,
-      );
-      return bytesToHex(owner.value());
-    } catch (e) {
-      throw new NotFoundException(`Contract ${contractHash} is unregistered`);
-    }
-  }
-
-  async createTransaction(
-    deployHash: string,
-    transactionType: string,
-    accountHash: string,
-    amount: string,
-    contractHash?: string,
-    entryPoint?: string,
-  ) {
-    const transaction = await this.transactionModel.findOne({ deployHash });
-    if (transaction) {
-      return transaction;
-    }
-    return this.transactionModel.create({
-      deployHash,
-      transactionType,
-      accountHash,
-      amount,
-      contractHash,
-      entryPoint,
-    });
-  }
-
-  async createOrUpdateContract(ownerAccountHash: string, contractHash: string) {
-    const contract = await this.contractModel.findOne({ contractHash });
-    if (contract) {
-      if (contract.ownerAccountHash === ownerAccountHash) {
-        return contract;
+  async getBalance(accountHash: string, cep18Symbol?: string) {
+    if (cep18Symbol) {
+      // Get allowance for cep-18 token
+      const pair = await this.pairService.getBySymbol(cep18Symbol);
+      if (!pair) {
+        throw new NotFoundException(`Token ${cep18Symbol} is not supported`);
       }
-      contract.ownerAccountHash = ownerAccountHash;
-      return contract.save();
+      const cep18Client = new CEP18Client(
+        this.rpcService.getRpcUrl(),
+        this.configService.get("CHAIN_NAME"),
+      );
+      cep18Client.setContractHash(`hash-${pair.tokenContract}`);
+      const relayPackageHash = new CLByteArray(
+        Contracts.contractHashToByteArray(
+          this.configService.get("RELAY_CONTRACT_PACKAGE_HASH"),
+        ),
+      );
+      return await cep18Client.allowances(
+        new CLAccountHash(hexToBytes(accountHash)),
+        relayPackageHash,
+      );
+    } else {
+      const balance = await this.relayContractClient.queryContractDictionary(
+        "owner_balance",
+        accountHash,
+      );
+
+      return balance.value() as BigNumber;
     }
-    return this.contractModel.create({
-      ownerAccountHash,
-      contractHash,
-    });
   }
 }
