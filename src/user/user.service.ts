@@ -43,17 +43,29 @@ export class UserService {
           this.configService.get("RELAY_CONTRACT_PACKAGE_HASH"),
         ),
       );
-      return await cep18Client.allowances(
-        new CLAccountHash(hexToBytes(accountHash)),
-        relayPackageHash,
-      );
+      try {
+        return await cep18Client.allowances(
+          new CLAccountHash(hexToBytes(accountHash)),
+          relayPackageHash,
+        );
+      } catch (e) {
+        // Return 0 if account not found
+        if (e.code === -32003) return BigNumber.from(0);
+        throw e;
+      }
     } else {
-      const balance = await this.relayContractClient.queryContractDictionary(
-        "owner_balance",
-        accountHash,
-      );
+      try {
+        const balance = await this.relayContractClient.queryContractDictionary(
+          "owner_balance",
+          accountHash,
+        );
 
-      return balance.value() as BigNumber;
+        return balance.value() as BigNumber;
+      } catch (e) {
+        // Return 0 if account not found
+        if (e.code === -32003) return BigNumber.from(0);
+        throw e;
+      }
     }
   }
 }

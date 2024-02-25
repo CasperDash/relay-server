@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { CLPublicKey } from "casper-js-sdk";
 import { ContractService } from "../contract/contract.service";
+import { PublicKeyValidationPipe } from "./pipes/public-key-validation.pipe";
 
 @Controller("user")
 export class UserController {
@@ -12,7 +13,7 @@ export class UserController {
 
   @Get(":publicKey/balance")
   async getBalance(
-    @Param("publicKey") publicKey: string,
+    @Param("publicKey", PublicKeyValidationPipe) publicKey: string,
     @Query("cep18") cep18Symbol?: string,
   ) {
     const accountHash = CLPublicKey.fromHex(publicKey).toAccountRawHashStr();
@@ -20,7 +21,9 @@ export class UserController {
     return { balance: balance.toString() };
   }
   @Get(":publicKey/contract")
-  async getContracts(@Param("publicKey") publicKey: string) {
+  async getContracts(
+    @Param("publicKey", PublicKeyValidationPipe) publicKey: string,
+  ) {
     const accountHash = CLPublicKey.fromHex(publicKey).toAccountRawHashStr();
     return await this.contractService.getContracts(accountHash);
   }
