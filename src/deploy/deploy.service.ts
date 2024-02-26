@@ -84,7 +84,7 @@ export class DeployService {
       // Check allowance
       const allowance = await this.userService.getBalance(
         contract.ownerAccountHash,
-        contract.paymentToken.tokenContract,
+        contract.paymentToken.symbol,
       );
       if (allowance.lt(cost)) {
         throw new NotAcceptableException("Insufficient allowance");
