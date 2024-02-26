@@ -102,15 +102,15 @@ export class DeployService {
         this.logger.log(
           `Transfer deploy hash ${transferDeployHash} is confirmed`,
         );
-        signedDeploy
-          .send(this.rpcService.getRpcUrl())
+        this.casperService
+          .tryDeploy(signedDeploy)
           .then((deployHash) =>
             this.logger.log(`Deploy hash ${deployHash} is confirmed`),
           );
       });
     } else {
-      signedDeploy
-        .send(this.rpcService.getRpcUrl())
+      this.casperService
+        .tryDeploy(signedDeploy)
         .then((deployHash) =>
           this.logger.log(`Deploy hash ${deployHash} is confirmed`),
         );
@@ -154,7 +154,7 @@ export class DeployService {
     if (target !== this.configService.get<string>(`RELAY_PURSE`)) {
       throw new BadRequestException("Invalid transfer target");
     }
-    const deployHash = await deploy.send(this.rpcService.getRpcUrl());
+    const deployHash = await this.casperService.tryDeploy(deploy);
     const isTransferSuccess =
       await this.casperService.waitForDeploy(deployHash);
 
@@ -171,7 +171,7 @@ export class DeployService {
     cep18TokenHash?: string,
   ) {
     const estimate: SpeculativeDeployResult =
-      await this.speculativeService.speculativeDeploy(
+      await this.speculativeService.trySpeculativeDeploy(
         this.makeRelayDeploy(
           originalDeploy,
           100 * MOTE_RATE, // Make dummy deploy to estimate gas cost
