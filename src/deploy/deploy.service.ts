@@ -86,7 +86,7 @@ export class DeployService {
         contract.ownerAccountHash,
         contract.paymentToken.symbol,
       );
-      if (allowance.lt(cost)) {
+      if (allowance.lt(gasAmount)) {
         throw new NotAcceptableException("Insufficient allowance");
       }
     }
