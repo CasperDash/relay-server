@@ -10,18 +10,17 @@ export class ContractService {
   ) {}
 
   async createOrUpdateContract(ownerAccountHash: string, contractHash: string) {
-    const contract = await this.contractModel.findOne({ contractHash });
-    if (contract) {
-      if (contract.ownerAccountHash === ownerAccountHash) {
-        return contract;
-      }
-      contract.ownerAccountHash = ownerAccountHash;
-      return contract.save();
-    }
-    return this.contractModel.create({
-      ownerAccountHash,
-      contractHash,
-    });
+    return this.contractModel.updateOne(
+      {
+        contractHash,
+      },
+      {
+        ownerAccountHash,
+      },
+      {
+        upsert: true,
+      },
+    );
   }
 
   async getContracts(accountHash: string) {
