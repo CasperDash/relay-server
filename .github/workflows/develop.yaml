@@ -1,0 +1,23 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.TESTNET_HOST }}
+          username: ${{ secrets.TESTNET_USERNAME }}
+          key: ${{ secrets.TESTNET_KEY }}
+          script: |
+            source ~/.profile 
+            cd ~/stack/projects/relay-server
+            git pull
+            npm run build
+            pm2 restart 0
