@@ -1,6 +1,6 @@
 {
   "RPC_URLS": [
-    "https://events.testnet.casperlabs.io/rpc",
+    "https://rpc.testnet.casperlabs.io/rpc",
     "http://76.91.193.251:7777/rpc"
   ],
   "SPEC_RPC_URLS": [
