@@ -7,6 +7,7 @@
     "http://76.91.193.251:7778/rpc"
   ],
   "EVENT_STREAM_URLS": [
+    "http://138.201.51.197:9999/events/main",
     "https://events.testnet.casperlabs.io/events/main"
   ]
 }
