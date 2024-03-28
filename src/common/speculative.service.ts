@@ -17,8 +17,12 @@ export class SpeculativeService {
     );
   }
 
-  async speculativeDeploy(deploy: DeployUtil.Deploy) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return this.nodeClient.speculativeDeploy(deploy);
+  async trySpeculativeDeploy(deploy: DeployUtil.Deploy) {
+    try {
+      return await this.nodeClient.speculativeDeploy(deploy);
+    } catch (e) {
+      await this.refresh();
+      throw e;
+    }
   }
 }

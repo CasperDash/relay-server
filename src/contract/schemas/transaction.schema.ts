@@ -14,6 +14,8 @@ export class Transaction {
   @Prop()
   amount: string;
   @Prop()
+  cep18Hash?: string;
+  @Prop()
   contractHash?: string;
   @Prop()
   entryPoint?: string;

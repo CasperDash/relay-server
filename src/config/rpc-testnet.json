@@ -1,11 +1,13 @@
 {
   "RPC_URLS": [
-    "http://testnet-node.melem.io:7777/rpc"
+    "https://rpc.testnet.casperlabs.io/rpc",
+    "http://76.91.193.251:7777/rpc"
   ],
   "SPEC_RPC_URLS": [
-    "http://testnet-node.melem.io:7778/rpc"
+    "http://76.91.193.251:7778/rpc"
   ],
   "EVENT_STREAM_URLS": [
-    "http://testnet-node.melem.io:9999/events/main"
+    "http://138.201.51.197:9999/events/main",
+    "https://events.testnet.casperlabs.io/events/main"
   ]
 }

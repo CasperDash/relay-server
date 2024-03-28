@@ -70,7 +70,7 @@ export class RpcService {
         });
         this.logger.log(`Set rpc url to ${speculativeRpcUrl}`);
         this.speculativeRpcUrl = speculativeRpcUrl;
-        return this.rpcUrl;
+        return this.speculativeRpcUrl;
       } catch (error) {
         this.logger.error(`${speculativeRpcUrl} is unreachable`);
       }
