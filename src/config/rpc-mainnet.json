@@ -1,0 +1,14 @@
+{
+  "RPC_URLS": [
+    "http://185.185.51.197:7777/rpc",
+    "http://62.112.8.39:7777/rpc"
+  ],
+  "SPEC_RPC_URLS": [
+    "http://185.185.51.197:7778/rpc",
+    "http://62.112.8.39:7778/rpc"
+  ],
+  "EVENT_STREAM_URLS": [
+    "http://185.185.51.197:9999/events/main",
+    "http://62.112.8.39:9999/events/main"
+  ]
+}
