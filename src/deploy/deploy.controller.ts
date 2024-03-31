@@ -3,7 +3,9 @@ import { DeployService } from "./deploy.service";
 import { DeployUtil } from "casper-js-sdk";
 import { DeployDto } from "./dtos/deloy.dto";
 import { EstimateDto } from "./dtos/estimate.dto";
+import { ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Deploy")
 @Controller("deploy")
 export class DeployController {
   constructor(private deployService: DeployService) {}
