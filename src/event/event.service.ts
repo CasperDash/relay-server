@@ -60,7 +60,7 @@ export class EventService implements OnModuleInit {
               break;
             }
             case EVENT_NAMES.CALL_ON_BEHALF:
-              const owner: string = event.data["owner"].value();
+              const caller: string = event.data["caller"].value();
               const contractHash: string = event.data["contract_hash"].value();
               const gasAmount: string = event.data["gas_amount"].value();
               const entryPoint: string = event.data["entry_point"].value();
@@ -70,7 +70,7 @@ export class EventService implements OnModuleInit {
               await this.transactionService.create(
                 deployHash,
                 "spend",
-                owner.slice(13),
+                caller.slice(13),
                 gasAmount,
                 cep18Hash,
                 contractHash.slice(9),
