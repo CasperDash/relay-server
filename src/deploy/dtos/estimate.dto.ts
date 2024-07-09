@@ -1,8 +1,8 @@
 import { IsDeploy } from "../decorators/is-deploy.decorator";
 import { IsOptional } from "class-validator";
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 
-export class DeployDto {
+export class EstimateDto {
   @ApiProperty()
   @IsDeploy()
   deploy: object;
@@ -11,4 +11,8 @@ export class DeployDto {
   @ApiPropertyOptional()
   @IsDeploy({ isTransfer: true })
   transferDeploy?: object;
+
+  @IsOptional()
+  @ApiPropertyOptional()
+  cep18: string;
 }

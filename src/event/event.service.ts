@@ -4,7 +4,8 @@ import { EventName, EventStream } from "casper-js-sdk";
 import { RpcService } from "../common/rpc.service";
 import { Parser } from "@make-software/ces-js-parser";
 import { CasperService } from "../common/casper.service";
-import { UserService } from "../user/user.service";
+import { ContractService } from "../contract/contract.service";
+import { TransactionService } from "../contract/transaction.service";
 
 const EVENT_NAMES = {
   DEPOSIT: "Deposit",
@@ -18,14 +19,17 @@ type RelayEventName = (typeof EVENT_NAMES)[keyof typeof EVENT_NAMES];
 export class EventService implements OnModuleInit {
   private eventStream: EventStream;
   private cesEventParser: Parser;
+
   constructor(
     private configService: ConfigService,
     private rpcService: RpcService,
     private casperService: CasperService,
-    private userService: UserService,
+    private contractService: ContractService,
+    private transactionService: TransactionService,
   ) {
     this.eventStream = new EventStream(this.rpcService.getEventStreamUrl());
   }
+
   onModuleInit() {
     this.eventStream.start();
     this.eventStream.subscribe(
@@ -38,7 +42,7 @@ export class EventService implements OnModuleInit {
             case EVENT_NAMES.DEPOSIT: {
               const owner: string = event.data["owner"].value();
               const amount: string = event.data["amount"].value();
-              await this.userService.createTransaction(
+              await this.transactionService.create(
                 deployHash,
                 "deposit",
                 owner.slice(13),
@@ -49,22 +53,26 @@ export class EventService implements OnModuleInit {
             case EVENT_NAMES.REGISTER: {
               const owner: string = event.data["owner"].value();
               const contractHash: string = event.data["contract_hash"].value();
-              await this.userService.createOrUpdateContract(
+              await this.contractService.createOrUpdateContract(
                 owner.slice(13),
                 contractHash.slice(9),
               );
               break;
             }
             case EVENT_NAMES.CALL_ON_BEHALF:
-              const owner: string = event.data["owner"].value();
+              const caller: string = event.data["caller"].value();
               const contractHash: string = event.data["contract_hash"].value();
               const gasAmount: string = event.data["gas_amount"].value();
               const entryPoint: string = event.data["entry_point"].value();
-              await this.userService.createTransaction(
+              const cep18Hash = event.data["cep18_hash"].value().some
+                ? event.data["cep18_hash"].value().val.toJSON().slice(9)
+                : undefined;
+              await this.transactionService.create(
                 deployHash,
                 "spend",
-                owner.slice(13),
+                caller.slice(13),
                 gasAmount,
+                cep18Hash,
                 contractHash.slice(9),
                 entryPoint,
               );
@@ -76,26 +84,30 @@ export class EventService implements OnModuleInit {
   }
 
   async parseRelayEvents(result: any) {
-    if (!this.cesEventParser) {
-      this.cesEventParser = await Parser.create(
-        this.casperService.getRpcClient(),
-        [this.configService.get("RELAY_CONTRACT_HASH")],
-      );
-    }
-    const executionResult = result.body.DeployProcessed.execution_result;
-    if (!executionResult.Success) {
+    try {
+      if (!this.cesEventParser) {
+        this.cesEventParser = await Parser.create(
+          this.casperService.getRpcClient(),
+          [this.configService.get("RELAY_CONTRACT_HASH")],
+        );
+      }
+      const executionResult = result.body.DeployProcessed.execution_result;
+      if (!executionResult.Success) {
+        return [];
+      }
+
+      return this.cesEventParser
+        .parseExecutionResult(executionResult)
+        .filter(
+          (parseResult) =>
+            !parseResult.error &&
+            Object.values(EVENT_NAMES).includes(
+              parseResult.event.name as RelayEventName,
+            ),
+        )
+        .map((parseResult) => parseResult.event);
+    } catch (e) {
       return [];
     }
-
-    return this.cesEventParser
-      .parseExecutionResult(executionResult)
-      .filter(
-        (parseResult) =>
-          !parseResult.error &&
-          Object.values(EVENT_NAMES).includes(
-            parseResult.event.name as RelayEventName,
-          ),
-      )
-      .map((parseResult) => parseResult.event);
   }
 }

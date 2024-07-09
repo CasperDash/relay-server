@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HydratedDocument } from "mongoose";
+import mongoose, { HydratedDocument } from "mongoose";
+import { Pair } from "./pair.schema";
 
 export type ContractDocument = HydratedDocument<Contract>;
 
@@ -9,6 +10,8 @@ export class Contract {
   ownerAccountHash: string;
   @Prop()
   contractHash: string;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: "Pair" })
+  paymentToken?: Pair;
   @Prop()
   createdAt: Date;
   @Prop()

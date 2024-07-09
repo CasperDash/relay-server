@@ -8,6 +8,7 @@ import { UserModule } from "./user/user.module";
 import { EventModule } from "./event/event.module";
 import RpcConfig from "./config/rpc-config";
 import { MongooseModule } from "@nestjs/mongoose";
+import { ContractModule } from "./contract/contract.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MongooseModule } from "@nestjs/mongoose";
     DeployModule,
     UserModule,
     EventModule,
+    ContractModule,
   ],
   controllers: [AppController],
   providers: [AppService],
