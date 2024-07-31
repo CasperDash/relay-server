@@ -3,7 +3,7 @@ import { DeployService } from "./deploy.service";
 import { DeployUtil } from "casper-js-sdk";
 import { DeployDto } from "./dtos/deloy.dto";
 import { EstimateDto } from "./dtos/estimate.dto";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiTags } from "@nestjs/swagger";
 
 @ApiTags("Deploy")
 @Controller("deploy")
@@ -11,6 +11,7 @@ export class DeployController {
   constructor(private deployService: DeployService) {}
 
   @Post("/")
+  @ApiOperation({ summary: "Deploy a transaction via CGS" })
   deploy(@Body() deployDto: DeployDto) {
     const deploy = DeployUtil.deployFromJson(deployDto.deploy).unwrap();
     const transferDeploy = deployDto.transferDeploy
@@ -21,6 +22,7 @@ export class DeployController {
   }
 
   @Post("/estimate")
+  @ApiOperation({ summary: "Estimate gas cost of a deploy" })
   @HttpCode(200)
   async estimate(@Body() estimateDto: EstimateDto) {
     const deploy = DeployUtil.deployFromJson(estimateDto.deploy).unwrap();

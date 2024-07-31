@@ -3,7 +3,14 @@ import { UserService } from "./user.service";
 import { CLPublicKey } from "casper-js-sdk";
 import { ContractService } from "../contract/contract.service";
 import { PublicKeyValidationPipe } from "./pipes/public-key-validation.pipe";
-import { ApiQuery, ApiTags } from "@nestjs/swagger";
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from "@nestjs/swagger";
+import { Contract } from "../contract/schemas/contract.schema";
 
 @ApiTags("User")
 @Controller("user")
@@ -14,7 +21,18 @@ export class UserController {
   ) {}
 
   @Get(":publicKey/balance")
-  @ApiQuery({ name: "cep18", required: false })
+  @ApiOperation({ summary: "Get remaining balance of a contract owner" })
+  @ApiParam({
+    name: "publicKey",
+    example:
+      "01c1003f6a4f7d7d2b8a4185e2a69cdf799d57014565d37f7322ff9ad183472a19",
+  })
+  @ApiQuery({
+    name: "cep18",
+    required: false,
+    description: "CEP-18 token name, leave blank for CSPR",
+    example: "USDT",
+  })
   async getBalance(
     @Param("publicKey", PublicKeyValidationPipe) publicKey: string,
     @Query("cep18") cep18Symbol?: string,
@@ -24,6 +42,16 @@ export class UserController {
     return { balance: balance.toString() };
   }
   @Get(":publicKey/contract")
+  @ApiOperation({ summary: "Get registered contracts of a contract owner" })
+  @ApiParam({
+    name: "publicKey",
+    example:
+      "01c1003f6a4f7d7d2b8a4185e2a69cdf799d57014565d37f7322ff9ad183472a19",
+  })
+  @ApiOkResponse({
+    type: Contract,
+    isArray: true,
+  })
   async getContracts(
     @Param("publicKey", PublicKeyValidationPipe) publicKey: string,
   ) {
