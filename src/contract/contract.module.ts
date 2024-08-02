@@ -7,6 +7,7 @@ import { Pair, PairSchema } from "./schemas/pair.schema";
 import { ContractController } from "./contract.controller";
 import { Transaction, TransactionSchema } from "./schemas/transaction.schema";
 import { TransactionService } from "./transaction.service";
+import { CommonModule } from "../common/common.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TransactionService } from "./transaction.service";
       { name: Pair.name, schema: PairSchema },
       { name: Transaction.name, schema: TransactionSchema },
     ]),
+    CommonModule,
   ],
   providers: [ContractService, PairService, TransactionService],
   exports: [ContractService, PairService, TransactionService],
