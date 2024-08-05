@@ -1,11 +1,23 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Contract } from "./schemas/contract.schema";
 import { CasperService } from "../common/casper.service";
-import { CLValueBuilder, Contracts, Keys, RuntimeArgs } from "casper-js-sdk";
+import {
+  CLPublicKey,
+  CLValueBuilder,
+  Contracts,
+  Keys,
+  RuntimeArgs,
+} from "casper-js-sdk";
 import { ConfigService } from "@nestjs/config";
 import { bytesToHex } from "@noble/hashes/utils";
+import { PairService } from "./pair.service";
+import { PairDocument } from "./schemas/pair.schema";
 
 @Injectable()
 export class ContractService {
@@ -13,6 +25,7 @@ export class ContractService {
     @InjectModel(Contract.name) private contractModel: Model<Contract>,
     private casperService: CasperService,
     private configService: ConfigService,
+    private pairService: PairService,
   ) {}
 
   async createOrUpdateContract(ownerAccountHash: string, contractHash: string) {
@@ -36,9 +49,15 @@ export class ContractService {
   }
 
   async getContractByHash(contractHash: string) {
-    return this.contractModel
+    const contract = await this.contractModel
       .findOne({ contractHash })
-      .populate("paymentToken");
+      .populate("paymentToken")
+      .exec();
+
+    if (!contract) {
+      throw new BadRequestException("Contract is not registered");
+    }
+    return contract;
   }
 
   async register(contractHash: string) {
@@ -87,5 +106,31 @@ export class ContractService {
     );
 
     return this.casperService.tryDeploy(registerDeploy);
+  }
+
+  async updatePaymentToken(
+    contractHash: string,
+    symbol: string,
+    publicKey: string,
+  ) {
+    let paymentToken: PairDocument = null;
+    if (symbol.toUpperCase() !== "CSPR") {
+      paymentToken = await this.pairService.getBySymbol(symbol);
+    }
+    const contract = await this.getContractByHash(contractHash);
+
+    if (
+      contract.ownerAccountHash !==
+      CLPublicKey.fromHex(publicKey).toAccountRawHashStr()
+    ) {
+      throw new UnauthorizedException("Unauthorized");
+    }
+
+    return this.contractModel.findOneAndUpdate(
+      { contractHash },
+      {
+        paymentToken,
+      },
+    );
   }
 }

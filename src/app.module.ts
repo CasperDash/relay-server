@@ -9,6 +9,7 @@ import { EventModule } from "./event/event.module";
 import RpcConfig from "./config/rpc-config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ContractModule } from "./contract/contract.module";
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ContractModule } from "./contract/contract.module";
     UserModule,
     EventModule,
     ContractModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

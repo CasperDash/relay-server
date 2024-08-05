@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { CLAccountHash, CLByteArray, Contracts } from "casper-js-sdk";
 import { ConfigService } from "@nestjs/config";
 import { CasperService } from "../common/casper.service";
@@ -30,9 +30,6 @@ export class UserService {
     if (cep18Symbol) {
       // Get allowance for cep-18 token
       const pair = await this.pairService.getBySymbol(cep18Symbol);
-      if (!pair) {
-        throw new NotFoundException(`Token ${cep18Symbol} is not supported`);
-      }
       const cep18Client = new CEP18Client(
         this.rpcService.getRpcUrl(),
         this.configService.get("CHAIN_NAME"),

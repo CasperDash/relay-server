@@ -55,9 +55,7 @@ export class DeployService {
       originalDeploy.session.storedContractByHash.hash,
     );
     const contract = await this.contractService.getContractByHash(contractHash);
-    if (!contract) {
-      throw new NotFoundException("Contract is not registered");
-    }
+
     let cost: BigNumber;
     let gasAmount: BigNumber;
     if (!contract.paymentToken) {
@@ -133,9 +131,6 @@ export class DeployService {
       return this.estimateGasCost(originalDeploy, transferDeploy);
     }
     const pair = await this.pairService.getBySymbol(cep18Symbol);
-    if (!pair) {
-      throw new NotFoundException(`Token ${cep18Symbol} is not supported`);
-    }
     const cost = await this.estimateGasCost(
       originalDeploy,
       transferDeploy,
